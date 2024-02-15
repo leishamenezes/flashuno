@@ -1,0 +1,287 @@
+# Importing necessary libraries
+# Importing necessary libraries
+import random
+import time
+
+# Defining the color, rank, and card type for UNO cards
+colors = ('RED', 'GREEN', 'BLUE', 'YELLOW')
+ranks = ('0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'Skip', 'Reverse', 'Draw2', 'Draw4', 'Wild')
+ctype = {'0': 'number', '1': 'number', '2': 'number', '3': 'number', '4': 'number', '5': 'number',
+         '6': 'number', '7': 'number', '8': 'number', '9': 'number', 'Skip': 'action', 'Reverse': 'action',
+         'Draw2': 'action', 'Draw4': 'action_nocolor', 'Wild': 'action_nocolor'}
+
+# Function to create a shuffled UNO deck
+def create_deck():
+    deck = []
+    for color in colors:
+        for rank in ranks:
+            if ctype[rank] != 'action_nocolor':
+                deck.extend([{'color': color, 'rank': rank}] * 2)
+            else:
+                deck.append({'rank': rank, 'cardtype': 'action_nocolor'})
+    random.shuffle(deck)
+    return deck
+
+# Function to deal a specified number of cards from the deck
+def deal_hand(deck, num_cards):
+    hand = []
+    for i in range(num_cards):
+        hand.append(deck.pop())
+    return hand
+
+# Function to randomly choose which player goes first
+def choose_first():
+    return random.choice(['Player', 'Pc'])
+
+
+
+# Function to print the player's current hand
+def print_hand(hand):
+    print("Your cards:")
+    for i, card in enumerate(hand, start=1):
+        if 'color' in card:
+            print(f'{i}. {card["color"]} {card["rank"]}')
+        else:
+            print(f'{i}. {card["rank"]}')
+
+# Function to check if a single card is a valid move
+def single_card_check(top_card, card):
+    if card.get('color') == top_card.get('color') or top_card['rank'] == card['rank'] or ctype[card['rank']] == 'action_nocolor':
+        return True
+    return False
+
+# Function to check and play a card from the player's hand
+def full_hand_check(hand, top_card):
+    for card in hand:
+        if card.get('color') == top_card.get('color') or card['rank'] == top_card['rank'] or ctype[card['rank']] == 'action_nocolor':
+            return hand.pop(hand.index(card))
+    return 'no card'
+
+# Function to check if a player has won
+def win_check(hand):
+    return len(hand) == 0
+
+# Function to check if the last card in the player's hand is an action card
+def last_card_check(hand):
+    for card in hand:
+        if ctype[card['rank']] != 'number':
+            return True
+        else:
+            return False 
+
+# Function to handle the main UNO game logic
+def uno_game():
+    print('Welcome to UNO! Finish your cards first to win')
+
+    # Initializing the deck, player's hand, and PC's hand
+    deck = create_deck()
+    player_hand = deal_hand(deck, 7)
+    pc_hand = deal_hand(deck, 7)
+
+
+
+    # Choosing the starting card from the deck
+    top_card = deck.pop()
+    while ctype[top_card['rank']] != 'number':
+        top_card = deck.pop()
+
+    print(f'\nStarting Card is: {top_card["color"]} {top_card["rank"]}')
+    time.sleep(1)
+
+    # Randomly selecting the player or PC to go first
+    playing = True
+    turn = choose_first()
+    print(f'{turn} will go first')
+
+    # Initializing move count to limit the game to 20 moves
+    move_count = 0
+
+    # Main game loop
+    while playing and move_count < 20:
+        move_count += 1
+
+        # Player's turn
+        if turn == 'Player':
+            print(f'\nTop card is: {top_card["color"]} {top_card["rank"]}')
+            print_hand(player_hand)
+
+            # Handling special case for the last card in the player's hand
+            if len(player_hand) == 1 and last_card_check(player_hand):
+                print('Last card cannot be an action card\nAdding one card from deck')
+                player_hand.append(deck.pop())
+                print_hand(player_hand)
+
+            choice = input("\nHit or Pull? (h/p): ").lower()  # Convert input to lowercase
+
+            if choice == 'h':
+                pos = int(input('Enter index of card: '))
+                temp_card = player_hand[(pos - 1)]
+                if single_card_check(top_card, temp_card):
+                    temp_card = player_hand.pop(pos - 1)
+                    if ctype[temp_card['rank']] == 'number':
+                        top_card = temp_card
+                        turn = 'Pc'
+                    else:
+                        # Handling special actions for Skip, Reverse, Draw2, Draw4, and Wild cards
+                        if temp_card['rank'] == 'Skip' or temp_card['rank'] == 'Reverse':
+                            turn = 'Player'
+                            top_card = temp_card
+                        elif temp_card['rank'] == 'Draw2':
+                            pc_hand.extend([deck.pop() for i in range(2)])
+                            top_card = temp_card
+                            turn = 'Player'
+                        elif temp_card['rank'] == 'Draw4':
+                            pc_hand.extend([deck.pop() for i in range(4)])
+                            top_card = temp_card
+                            draw4color = input('Change color to : ').upper()  # Convert input to lowercase
+                            top_card['color'] = draw4color
+                            turn = 'Player'
+                        elif temp_card['rank'] == 'Wild':
+                            top_card = temp_card
+                            wildcolor = input('Change color to : ').upper()  # Convert input to lowercase
+                            top_card['color'] = wildcolor
+                            turn = 'Pc'
+                else:
+                    print('This card cannot be used')
+
+            elif choice == 'p':
+                temp_card = deck.pop()
+                if "color" in temp_card:
+                  print(f'You got: {temp_card["color"]} {temp_card["rank"]}')
+                else:
+                     print(f'You got: {temp_card["rank"]}')
+                time.sleep(1)
+                if single_card_check(top_card, temp_card):
+                    player_hand.append(temp_card)
+                else:
+                    print('Cannot use this card')
+                    player_hand.append(temp_card)
+                    turn = 'Pc'
+
+            # Checking if the player has won
+            if win_check(player_hand):
+                print('\nYOU WON!!')
+                playing = False
+                break
+
+
+        # PC's turn
+        if turn == 'Pc':
+            # Handling special case for the last card in the PC's hand
+            if len(pc_hand) == 1 and last_card_check(pc_hand):
+                print('Adding a card to PC hand')
+                pc_hand.append(deck.pop())
+
+            # Checking and playing a card from the PC's hand
+            temp_card = full_hand_check(pc_hand, top_card)
+            time.sleep(1)
+
+            if temp_card != 'no card':
+                if "color" in temp_card:
+                   print(f'\nPC throws: {temp_card["color"]} {temp_card["rank"]}')
+                   
+                else:
+                    print(f'\nPC throws: {temp_card["rank"]}')
+                time.sleep(1)
+                if ctype[temp_card['rank']] == 'number':
+                    top_card = temp_card
+                    turn = 'Player'
+                else:
+                    # Handling special actions for Skip, Reverse, Draw2, Draw4, and Wild cards
+                    if temp_card['rank'] == 'Skip' or temp_card['rank'] == 'Reverse':
+                        turn = 'Pc'
+                        top_card = temp_card
+                    elif temp_card['rank'] == 'Draw2':
+                        player_hand.extend([deck.pop() for i in range(2)])
+                        top_card = temp_card
+                        turn = 'Pc'
+                    elif temp_card['rank'] == 'Draw4':
+                        player_hand.extend([deck.pop() for i in range(4)])
+                        top_card = temp_card
+                        draw4color = pc_hand[0].get('color', random.choice(colors))
+                        print('Color changes to', draw4color)
+                        top_card['color'] = draw4color
+                        turn = 'Pc'
+
+
+
+                    elif temp_card['rank'] == 'Wild':
+                        top_card = temp_card
+                        wildcolor = pc_hand[0].get('color', random.choice(colors))
+                        print('Color changes to', wildcolor)
+                        top_card['color'] = wildcolor
+                        turn = 'Player'
+
+            else:
+                print('\nPC pulls a card from deck')
+                time.sleep(1)
+                temp_card = deck.pop()
+                if single_card_check(top_card, temp_card):
+                    if "color" in temp_card:
+                       print(f'PC throws: {temp_card["color"]} {temp_card["rank"]}')
+                    else:
+                       print(f'PC throws: {temp_card["rank"]}') 
+                    time.sleep(1)
+                    if ctype[temp_card['rank']] == 'number':
+                        top_card = temp_card
+                        turn = 'Player'
+                    else:
+                        # Handling special actions for Skip, Reverse, Draw2, Draw4, and Wild cards
+                        if temp_card['rank'] == 'Skip' or temp_card['rank'] == 'Reverse':
+                            turn = 'Pc'
+                            top_card = temp_card
+                        elif temp_card['rank'] == 'Draw2':
+                            player_hand.extend([deck.pop() for i in range(2)])
+                            top_card = temp_card
+                            turn = 'Pc'
+                        elif temp_card['rank'] == 'Draw4':
+                            player_hand.extend([deck.pop() for i in range(4)])
+                            top_card = temp_card
+                            draw4color = pc_hand[0].get('color', random.choice(colors))
+                            print('Color changes to', draw4color)
+                            top_card['color'] = draw4color
+                            turn = 'Pc'
+                        elif temp_card['rank'] == 'Wild':
+
+
+
+                            top_card = temp_card
+                            wildcolor = pc_hand[0].get('color', random.choice(colors))
+                            print('Color changes to', wildcolor)
+                            top_card['color'] = wildcolor
+                            turn = 'Player'
+                else:
+                    print('PC doesnt have a card')
+                    time.sleep(1)
+                    pc_hand.append(temp_card)
+                    turn = 'Player'
+
+            print(f'\nPC has {len(pc_hand)} cards remaining')
+            time.sleep(1)
+
+            # Checking if the PC has won
+            if win_check(pc_hand):
+                print('\nPC WON!!')
+                playing = False
+
+    # Determining the winner if the game ends after 20 moves
+    if move_count >= 20:
+        print("\nGame has ended after 20 moves. Determining the winner based on the least number of cards.")
+        if len(player_hand) < len(pc_hand):
+            print("YOU WON!!")
+        elif len(player_hand) > len(pc_hand):
+            print("PC WON!!")
+        else:
+            print("It's a draw!")
+
+    # Asking if the player wants to play again
+    new_game = input('Would you like to play again? (y/n)').lower()  # Convert input to lowercase
+    if new_game == 'y':
+        return True
+    else:
+        print('\nThanks for playing!!')
+        return False
+
+# Running the UNO game until the player decides to exit
+while uno_game():
+    pass
